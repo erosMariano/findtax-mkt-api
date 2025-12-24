@@ -11,7 +11,27 @@ const appsMediasService = new AppsMediasService();
 router.get('/apps', async (req, res) => {
   try {
     const apps = await appService.getAllAppsByProviderActive();
-    res.json({ apps, message: 'Apps when provider is actived fetched successfully!' });
+    
+    // Processar cada app para buscar a logo e filtrar appsMedias
+    const appsWithLogos = await Promise.all(
+      apps.map(async (app: any) => {
+        const appLogo = app?.appPhoto;
+        const logo = appLogo ? await appsMediasService.getMediaByUuid(appLogo) : null;
+        
+        // Filtrar appsMedias para remover a logo
+        const filteredMedias = app.appsMedias?.filter(
+          (media: any) => media.appMediaUuid !== appLogo
+        ) || [];
+        
+        return {
+          ...app,
+          appPhoto: logo?.assetId || app.appPhoto,
+          appsMedias: filteredMedias
+        };
+      })
+    );
+    
+    res.json({ apps: appsWithLogos, message: 'Apps when provider is actived fetched successfully!' });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching apps', error });
   }
